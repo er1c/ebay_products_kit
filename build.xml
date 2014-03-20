@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- a generic jax-ws proxy generator for eBay SOA services,
+     author: boyang
+-->
+<project name="jaxws-proxy-generator" default="help" basedir=".">
+	
+  <!-- load external properties from build.properties -->
+  <property file="build.properties" />
+  
+  <!-- defines the source and target jvm version for javac.
+    Should make sure to generate Java 5-compatible bytecode
+  -->
+  <property name="ant.build.javac.source" value="5" />
+  <property name="ant.build.javac.target" value="5" />
+  
+  <!-- project directories -->
+  <!-- base directory of wsdl to use -->
+  <property name="wsdl.dir" value="wsdl" />
+  <!-- path to the WSDL file -->
+  <property name="wsdl.path" value="${wsdl.dir}/${wsdl.file}" />
+  <property name="src.dir" value="src" />
+  <property name="tmp.dir" value="tmp" />
+  <property name="tmpbin.dir" value="${tmp.dir}/ant.bin" />
+  <property name="lib.dir" value="lib" />
+	
+  <path id="compile.cp">
+    <pathelement location="${lib.dir}/log4j-1.2.16.jar" />
+  </path>
+
+  <target name="init" depends="clean">
+    <tstamp>
+      <format property="DATE_PLAIN" pattern="yyMMdd" />
+      <format property="DATE_DOTTED" pattern="dd.MM.yyyy" />
+      <format property="DATE_FULL" pattern="yyyy-MM-dd HH:mm:ss" />
+    </tstamp>
+    <property name="libfile" value="${lib.dir}/${service.lib}.jar" />
+  </target>
+  
+  <target name="compile" depends="compile-wsdl" description="compile the sources">
+    <mkdir dir="${tmpbin.dir}" />
+    <javac fork="true" debug="true" srcdir="${src.dir}" destdir="${tmpbin.dir}">
+        <classpath refid="compile.cp" />
+    </javac>
+    <!-- Copy the WSDL/XSD files to the same directory as the generated classes -->
+    <copy todir="${tmpbin.dir}/${target.packagepath}">
+      <fileset dir="${wsdl.dir}" includes="*" />
+    </copy>
+  </target>
+
+  <target name="clean" description="remove generated temporary resources">
+    <delete file="${lib.dir}/${service.lib}.jar"/>
+    <delete quiet="true" includeemptydirs="true">
+      <fileset dir="${tmpbin.dir}" />
+      <fileset dir="${src.dir}" >
+          <include name="${target.packagepath}/**/*" />    
+      </fileset>
+    </delete>
+  </target>
+    
+  <target name="build" depends="jar" description="build all resources and create jar">
+  </target>
+  
+  <target name="jar" depends="compile" description="create library with the generated classes">
+    <!--mkdir dir="${dist.dir}" /-->
+    <jar destfile="${libfile}" basedir="${tmpbin.dir}">
+      <manifest>
+        <attribute name="Built-By" value="${user.name}"/>
+        <attribute name="Built-Date" value="${DATE_FULL}"/>
+      </manifest>
+    </jar>
+  </target>
+      
+  <target name="compile-wsdl" depends="init" description="compiles the given WSDL file">
+    
+    <!-- 
+      Note: the plain WSDL filename is used as wsdlLocation, since the WSDL is later
+        copied into the same package directory as all generated classes.
+    -->
+    <exec executable="wsimport" dir="." failonerror="true">
+         <arg line="-keep -s ${src.dir} -p ${target.package} -extension -verbose -quiet -Xnocompile
+                   -b custom-binding.xml -wsdllocation ${wsdl.file} ${wsdl.path}" />
+    </exec>
+    
+    <!-- Copy the WSDL/XSD files to the same directory as the generated classes -->
+    <copy todir="${src.dir}/${target.packagepath}">
+      <fileset dir="${wsdl.dir}" includes="*" />
+    </copy>
+  </target>
+  
+  <target name="help" depends="init">
+    <echo message="Targets:" />
+    <echo message="  help    - this message" />
+    <echo message="  compile-wsdl - generate sources for specified WSDL file" />
+    <echo message="  compile - compile the generated sources" />
+    <echo message="  build   - build all resources and create jar" />
+    <echo message="  jar     - create library for the generated classes" />
+    <echo message="  clean   - remove generated temporary resources" />
+  </target>
+</project>
